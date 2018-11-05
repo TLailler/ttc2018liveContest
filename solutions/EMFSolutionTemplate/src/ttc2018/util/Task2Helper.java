@@ -1,7 +1,9 @@
 package ttc2018.util;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 import SocialNetwork.Comment;
@@ -9,50 +11,57 @@ import SocialNetwork.Post;
 import SocialNetwork.SocialNetworkRoot;
 import SocialNetwork.User;
 
-public class Task1Helper {
+public class Task2Helper {
 	
 	private final static Map<Integer, String> PODIUM = new HashMap<Integer, String>();
-	private final static HashSet<User> USERS_WHO_LIKED = new HashSet<User>();
+	
+	/**
+	 * List of groups of users who liked a comment
+	 */
+	private final static List<HashSet<String>> GROUPS_OF_USERS_WHO_LIKED = new ArrayList<>();
 	
 	/**
 	 * Smallest score of the current podium
 	 */
 	private static Integer smallestScore = Integer.MAX_VALUE;
 	
-	private Task1Helper() {}
+	private Task2Helper() {}
 	
 	public static String calculatePodium(SocialNetworkRoot socialNetwork) {
-		Integer postScore = -1;
 		
 		for (Post post: socialNetwork.getPosts()) {
-			postScore = calculatePostScore(post);
-			System.out.println("Post id : " + post.getId() + " ; Score : " + postScore);
-			postScore = -1;
+			for (Comment comm: post.getComments()) {
+				calculateCommentScore(comm);
+			}
 		}
 		return computePodiumResult();
 	}
 	
-	public static Integer calculatePostScore(Post post) {
-		Integer score = 0;
-		for (Comment commentChild : post.getComments()) {
-			score += calculateCommentScore(commentChild);
-		}
-		score += USERS_WHO_LIKED.size();
-		USERS_WHO_LIKED.clear();
-		addToPodium(score, post.getId());
-		return score;
-	}
-	
 	public static Integer calculateCommentScore(Comment comm) {
-		Integer score = 10;
 		
 		for (Comment commentChild : comm.getComments()) {
-			score += calculateCommentScore(commentChild);
-			USERS_WHO_LIKED.addAll(commentChild.getLikedBy());
+			calculateCommentScore(commentChild);
+		}
+		// calculate score for current comment
+		// users who LIKED and are FRIENDS in the same GROUP
+		Integer score = 0;
+		
+		for (User user: comm.getLikedBy()) {
+			addToGroups(user.getId());
 		}
 		return score;
 	}
 	
+	public static void addToGroups(String userId) {
+		// to FIX because it's not a good starting
+		for (HashSet<String> group: GROUPS_OF_USERS_WHO_LIKED) {
+			
+			if (group.contains(userId)) {
+				
+			}
+		}
+	}
+
 	public static void addToPodium(Integer score, String id) {
 		
 		if (PODIUM.size() < 3) {
