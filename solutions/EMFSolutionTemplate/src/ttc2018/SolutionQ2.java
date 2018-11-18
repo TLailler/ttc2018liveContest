@@ -4,13 +4,13 @@ import org.eclipse.emf.common.util.EList;
 
 import Changes.ModelChange;
 import Changes.ModelChangeSet;
+import ttc2018.util.Task2Helper;
 
 public class SolutionQ2 extends Solution {
 
 	@Override
 	public String Initial() {
-		// TODO Implement Q2
-		return null;
+		return  Task2Helper.calculatePodium(this.getSocialNetwork());
 	}
 
 	@Override

@@ -1,10 +1,11 @@
 package ttc2018.util;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Date;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
+import java.util.TreeMap;
 
 import SocialNetwork.Comment;
 import SocialNetwork.Post;
@@ -16,17 +17,12 @@ public class Task2Helper {
 	/**
 	 * Map containing the 3 most influent comments
 	 */
-	private final static Map<Integer, String> PODIUM = new HashMap<Integer, String>();
+	private final static TreeMap<Score, String> PODIUM = new TreeMap<Score, String>(new ScoreComparator());
 	
 	/**
 	 * List of groups of users who liked a comment
 	 */
 	private final static List<HashSet<User>> GROUPS_OF_USERS_WHO_LIKED = new ArrayList<>();
-	
-	/**
-	 * Smallest score of the current podium
-	 */
-	private static Integer smallestScore = Integer.MAX_VALUE;
 	
 	private Task2Helper() {}
 	
@@ -57,7 +53,7 @@ public class Task2Helper {
 		for (HashSet<User> group : GROUPS_OF_USERS_WHO_LIKED) {
 			score += (group.size() * group.size()); 
 		}
-		addToPodium(score, comm.getId());
+		addToPodium(score, comm.getTimestamp(), comm.getId());
 		return score;
 	}
 	
@@ -98,32 +94,16 @@ public class Task2Helper {
 		}
 	}
 
-	public static void addToPodium(Integer score, String id) {
+	public static void addToPodium(Integer score, Date time, String id) {
 		
-		if (PODIUM.size() < 3) {
-			PODIUM.put(score,id);
-			if (score < smallestScore) {
-				smallestScore = score;
-			}
+		if (score == null || time == null) 
 			return;
-		}
 		
-		if (score > smallestScore) {
-			PODIUM.remove(smallestScore);
-			PODIUM.put(score, id);
-			calculateSmallestScore();
-		}
-		else {
-			System.out.println("Comment Score too small. Not added to the podium.");
-		}
-	}
-
-	private static void calculateSmallestScore() {
+		PODIUM.put(new Score(score, time),id);
 		
-		for (Integer score: PODIUM.keySet()) {
-			if (score < smallestScore) {
-				smallestScore = score;
-			}
+		if (PODIUM.size() > 3) {
+			// remove first score (which has the lowest)
+			PODIUM.remove(PODIUM.firstKey());
 		}
 	}
 	
@@ -133,12 +113,13 @@ public class Task2Helper {
 		
 		if (size == 0) return result;
 		
-		Object[] arrayPodium = PODIUM.values().toArray();
-		result += arrayPodium[0];
+		Iterator<Score> iter = PODIUM.keySet().iterator();
+		result += PODIUM.get(iter.next());
 		
-		for (int i = 1; i < size; i++) {
-			result += "|" + arrayPodium[i]; 
+		while (iter.hasNext()) {
+			result = PODIUM.get(iter.next()) + "|" + result; 
 		}
+		System.out.println("#################### PODIUM Q2 : " + result);
 		return result;
 	}
 }

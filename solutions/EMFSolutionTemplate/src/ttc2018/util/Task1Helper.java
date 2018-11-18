@@ -1,8 +1,10 @@
 package ttc2018.util;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.TreeMap;
 
 import SocialNetwork.Comment;
 import SocialNetwork.Post;
@@ -11,23 +13,15 @@ import SocialNetwork.User;
 
 public class Task1Helper {
 	
-	private final static Map<Integer, String> PODIUM = new HashMap<Integer, String>();
-	private final static HashSet<User> USERS_WHO_LIKED = new HashSet<User>();
-	
-	/**
-	 * Smallest score of the current podium
-	 */
-	private static Integer smallestScore = Integer.MAX_VALUE;
+	private final static TreeMap<Score, String> PODIUM = new TreeMap<Score, String>(new ScoreComparator());
+	private final static List<User> USERS_WHO_LIKED = new ArrayList<User>();
 	
 	private Task1Helper() {}
 	
 	public static String calculatePodium(SocialNetworkRoot socialNetwork) {
-		Integer postScore = -1;
 		
 		for (Post post: socialNetwork.getPosts()) {
-			postScore = calculatePostScore(post);
-			System.out.println("Post id : " + post.getId() + " ; Score : " + postScore);
-			postScore = -1;
+			calculatePostScore(post);
 		}
 		return computePodiumResult();
 	}
@@ -39,7 +33,7 @@ public class Task1Helper {
 		}
 		score += USERS_WHO_LIKED.size();
 		USERS_WHO_LIKED.clear();
-		addToPodium(score, post.getId());
+		addToPodium(score, post.getTimestamp(), post.getId());
 		return score;
 	}
 	
@@ -53,47 +47,32 @@ public class Task1Helper {
 		return score;
 	}
 	
-	public static void addToPodium(Integer score, String id) {
+	public static void addToPodium(Integer score, Date time, String id) {
 		
-		if (PODIUM.size() < 3) {
-			PODIUM.put(score,id);
-			if (score < smallestScore) {
-				smallestScore = score;
-			}
+		if (score == null || time == null) 
 			return;
-		}
 		
-		if (score > smallestScore) {
-			PODIUM.remove(smallestScore);
-			PODIUM.put(score, id);
-			calculateSmallestScore();
-		}
-		else {
-			System.out.println("Post Score too small. Not added to the podium.");
+		PODIUM.put(new Score(score, time),id);
+		
+		if (PODIUM.size() > 3) {
+			// remove first score (which has the lowest)
+			PODIUM.remove(PODIUM.firstKey());
 		}
 	}
 
-	private static void calculateSmallestScore() {
-		
-		for (Integer score: PODIUM.keySet()) {
-			if (score < smallestScore) {
-				smallestScore = score;
-			}
-		}
-	}
-	
 	public static String computePodiumResult() {
 		String result = "";
 		int size = PODIUM.size();
 		
 		if (size == 0) return result;
 		
-		Object[] arrayPodium = PODIUM.values().toArray();
-		result += arrayPodium[0];
+		Iterator<Score> iter = PODIUM.keySet().iterator();
+		result += PODIUM.get(iter.next());
 		
-		for (int i = 1; i < size; i++) {
-			result += "|" + arrayPodium[i]; 
+		while (iter.hasNext()) {
+			result = PODIUM.get(iter.next()) + "|" + result; 
 		}
+		System.out.println("#################### PODIUM Q1 : " + result);
 		return result;
 	}
 }
