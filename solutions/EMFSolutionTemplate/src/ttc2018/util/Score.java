@@ -2,9 +2,22 @@ package ttc2018.util;
 
 import java.util.Date;
 
+/**
+ * Class used as a Post or a Comment Score
+ * 
+ * @author Emeric G
+ *
+ */
 public class Score {
 	
+	/**
+	 * amount of points
+	 */
 	private int points;
+	
+	/**
+	 * date of creation
+	 */
 	private Date timestamp;
 	
 	public Score(int p, Date time) {

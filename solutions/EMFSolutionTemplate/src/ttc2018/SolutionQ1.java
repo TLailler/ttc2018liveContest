@@ -21,7 +21,7 @@ public class SolutionQ1 extends Solution {
 			change.apply();
 			Task1Helper.findUpdatedPost(change);
 		}
-		return Task1Helper.updatePodium(this.getSocialNetwork());
+		return Task1Helper.updatePodium();
 		
 		// If we want to use Initial method for update
 //		return Task1Helper.calculatePodium(this.getSocialNetwork());

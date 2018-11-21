@@ -20,7 +20,7 @@ public class SolutionQ2 extends Solution {
 			change.apply();
 			Task2Helper.findUpdatedComments(change);
 		}
-		return Task2Helper.updatePodium(this.getSocialNetwork());
+		return Task2Helper.updatePodium();
 	}
 
 }

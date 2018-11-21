@@ -28,17 +28,23 @@ public class Task2Helper {
 	private final static TreeMap<Score, String> PODIUM = new TreeMap<Score, String>(new ScoreComparator());
 	
 	/**
-	 * List of groups of users who liked a comment
+	 * List of groups of users who liked a comment (strongly connected components)
 	 */
 	private final static List<HashSet<User>> GROUPS_OF_USERS_WHO_LIKED = new ArrayList<>();
 	
 	/**
-	 * For Update part (IN PROGRESS)
+	 * For Update Task :
+	 * Set containing comments to update after that changes have been applied
 	 */
 	private final static HashSet<Comment> MODIFIED_COMMENTS = new HashSet<Comment>();
 	
 	private Task2Helper() {}
 	
+	/**
+	 * Method to call to compute the podium of the most influent comments
+	 * @param socialNetwork - Social network to analyse
+	 * @return String containing the podium (3 ids separated by the char '|')
+	 */
 	public static String calculatePodium(SocialNetworkRoot socialNetwork) {
 		PODIUM.clear();
 		
@@ -50,88 +56,73 @@ public class Task2Helper {
 		return computePodiumResult();
 	}
 	
-	public static String updatePodium(SocialNetworkRoot socialNetwork) {
+	/**
+	 * For Update Task :
+	 * Method to call to update the podium of the most influent comments
+	 * @return String containing the podium (3 ids separated by the char '|')
+	 */
+	public static String updatePodium() {
 		
-		System.out.println("Nb MODIFIED COMMENTS : " + MODIFIED_COMMENTS.size());
+		// Update the score of all the comments affected by changes applied  while updating the social network
 		for (Comment comm: MODIFIED_COMMENTS) {
-			System.out.println("MODIFIED COMMENT ID : " + comm.getId());
 			updateCommentScore(comm);
 		}
 		MODIFIED_COMMENTS.clear();
 		return computePodiumResult();
 	}
 	
+	/**
+	 * For Update Task :
+	 * Find out if a change affects a (or several) Comment(s).
+	 * If so, the comment(s) is(are) added the MODIFIED_COMMENTS set. 
+	 * @param change
+	 */
 	public static void findUpdatedComments(ModelChange change) {
 		ChangeTransaction currentChangeTransaction = null;
 		ModelChange sourceChange = null;
+		CompositionListInsertion compositionListInsertion = null;
+		AssociationCollectionInsertion associationCollectionInsertion = null;
 		EObject addedElement = null;
 		EObject affectedElement = null;
 		EReference feature = null;
+		Integer index = null;
 
-		System.out.println();
-		System.out.println();
-		System.out.println("DEBUT FIND UPDATED COMMENTS");
-		System.out.println();
-		System.out.println("Change Class : " + change.getClass());
-		
 		if (change instanceof ChangeTransaction) {
 			currentChangeTransaction = (ChangeTransaction)change;
 			sourceChange = currentChangeTransaction.getSourceChange();
-			System.out.println("Source change Class : " + sourceChange.getClass());
 		}
 		else {
 			sourceChange = change;
 		}
 		
-		
+		// Case : a new Comment is added so its score has to be updated
 		if (sourceChange instanceof CompositionListInsertion) {
-			addedElement = ((CompositionListInsertion)sourceChange).getAddedElement();
-			int index = ((CompositionListInsertion)sourceChange).getIndex();
-			if (addedElement != null)
-				System.out.println("addedElement : " + addedElement.getClass());
-			else {
-				System.out.println("addedElement : null");
-				System.out.println("index : " + index);
-				addedElement = ((CompositionListInsertion)sourceChange).getAffectedElement();
-			}
-				
-			System.out.println("affectedElement : " + ((CompositionListInsertion)sourceChange).getAffectedElement().getClass());
-			System.out.println("feature : " + ((EReference)((CompositionListInsertion)sourceChange).getFeature()).getName());
+			compositionListInsertion = (CompositionListInsertion)sourceChange;
+			addedElement = compositionListInsertion.getAddedElement();
+			index = compositionListInsertion.getIndex();
 			
+			if (addedElement == null)
+				affectedElement = compositionListInsertion.getAffectedElement();
+				
 			if (addedElement instanceof Comment) {
-				System.out.println("Comment added id : " + ((Comment)addedElement).getId());
 				MODIFIED_COMMENTS.add((Comment)addedElement);
 			}
-			else if (addedElement instanceof Post) {
-				System.out.println("Post added id : " + ((Post)addedElement).getId());
-				System.out.println("Comment added test id : " + ((Post)addedElement).getComments().get(index).getId());
-				MODIFIED_COMMENTS.add(((Post)addedElement).getComments().get(index));
+			else if (affectedElement instanceof Post && index != null) {
+				MODIFIED_COMMENTS.add(((Post)affectedElement).getComments().get(index));
 			}
 		}
 		else if (sourceChange instanceof AssociationCollectionInsertion) {
-			addedElement = ((AssociationCollectionInsertion)sourceChange).getAddedElement();
-			affectedElement = ((AssociationCollectionInsertion)sourceChange).getAffectedElement();
-			feature = (EReference)((AssociationCollectionInsertion)sourceChange).getFeature();
+			associationCollectionInsertion = (AssociationCollectionInsertion)sourceChange;
+			addedElement = associationCollectionInsertion.getAddedElement();
+			affectedElement = associationCollectionInsertion.getAffectedElement();
+			feature = (EReference)(associationCollectionInsertion).getFeature();
 			
-			if (addedElement != null)
-				System.out.println("addedElement : " + addedElement.getClass());
-			else 
-				System.out.println("addedElement : null");
-			
-			if (affectedElement != null)
-				System.out.println("affectedElement : " + affectedElement.getClass());
-			else 
-				System.out.println("affectedElement : null");
-			
-			if (feature != null)
-				System.out.println("feature : " + feature.getName());
-			else 
-				System.out.println("feature : null");
-			
+			// Case : a Comment is liked by a User so its score has to be updated
 			if (addedElement instanceof Comment) {
-				System.out.println("Comment liked id : " + ((Comment)addedElement).getId());
 				MODIFIED_COMMENTS.add((Comment)addedElement);
 			}
+			// Case : two users become friends -> Scores of Comments liked by both of them
+			//        have to be updated
 			else if (addedElement instanceof User && affectedElement instanceof User && "friends".contentEquals(feature.getName())) {
 				List<Comment> commentsLikedByAdded = ((User)addedElement).getLikes();
 				List<Comment> commentsLikedByAffected = ((User)affectedElement).getLikes();
@@ -139,33 +130,32 @@ public class Task2Helper {
 				for (Comment comm : commentsLikedByAdded) {
 					
 					if (commentsLikedByAffected.contains(comm)) {
-						System.out.println("Comment liked by two new friends : " + comm.getId());
 						MODIFIED_COMMENTS.add(comm);
 					}
 				}
 			}
 		}
-
-		System.out.println();
-		System.out.println("FIN FIND UPDATED COMMENTS");
-		System.out.println();
-		System.out.println();
 	}
 	
+	/**
+	 * Method which calculates the Score of a given Comment
+	 * @param comment
+	 * @return points of the Comment's Score
+	 */
 	public static Integer calculateCommentScore(Comment comm) {
 		
 		for (Comment commentChild : comm.getComments()) {
 			calculateCommentScore(commentChild);
 		}
-		// calculate score for current comment
-		// users who LIKED and are FRIENDS in the same GROUP
 		GROUPS_OF_USERS_WHO_LIKED.clear();
 		Integer score = 0;
 		
+		// Classify users who liked the Comment into strongly connected components
 		for (User user: comm.getLikedBy()) {
 			addToGroups(user);
 		}
 		
+		// Comment's points are the sum of its squared strongly connected components sizes
 		for (HashSet<User> group : GROUPS_OF_USERS_WHO_LIKED) {
 			score += (group.size() * group.size()); 
 		}
@@ -173,25 +163,32 @@ public class Task2Helper {
 		return score;
 	}
 	
+	/**
+	 * For Update Task :
+	 * Method which updates the Score of a given Comment
+	 * @param comment
+	 * @return points of the Comment's Score
+	 */
 	public static Integer updateCommentScore(Comment comm) {
 		Score keyToRemove = null;
 		
 		for (Comment commentChild : comm.getComments()) {
 			calculateCommentScore(commentChild);
 		}
-		// calculate score for current comment
-		// users who LIKED and are FRIENDS in the same GROUP
 		GROUPS_OF_USERS_WHO_LIKED.clear();
 		Integer score = 0;
 		
+		// Classify users who liked the Comment into strongly connected components
 		for (User user: comm.getLikedBy()) {
 			addToGroups(user);
 		}
 		
+		// Comment's points are the sum of its squared strongly connected components sizes
 		for (HashSet<User> group : GROUPS_OF_USERS_WHO_LIKED) {
 			score += (group.size() * group.size()); 
 		}
 		
+		// If the updated Comment was already in the PODIUM with its previous Score, we have to remove it
 		for (Entry<Score, String> podiumMember : PODIUM.entrySet()) {
 			if (podiumMember.getValue().equals(comm.getId())) {
 				keyToRemove = podiumMember.getKey();
@@ -201,15 +198,23 @@ public class Task2Helper {
 		if (keyToRemove != null) {
 			PODIUM.remove(keyToRemove);			
 		}
+		// Try to add the new Score to the PODIUM
 		addToPodium(score, comm.getTimestamp(), comm.getId());
 		return score;
 	}
 	
+	/**
+	 * Add a user to a group of users which contains at least one friend of the user
+	 * Create a new group of users who liked the Comment if the user is not added to
+	 * one of the existing groups.
+	 * @param user
+	 */
 	public static void addToGroups(User user) {
 		int currentNbOfGroups = GROUPS_OF_USERS_WHO_LIKED.size();
 		List<Integer> groupIndexesWhereUserAdded = new ArrayList<Integer>();
 		HashSet<User> group;
 
+		// Add the user to groups to which there are strongly connected 
 		for (int i = 0; i < currentNbOfGroups; i++) {
 			group = GROUPS_OF_USERS_WHO_LIKED.get(i);
 			
@@ -225,11 +230,15 @@ public class Task2Helper {
 		
 		int nbGroupsWhereUserAdded = groupIndexesWhereUserAdded.size();
 		
+		// if the user wasn't added to a group,
+		// create a new strongly connected component with this user
 		if (nbGroupsWhereUserAdded == 0) {
 			group = new HashSet<User>();
 			group.add(user);
 			GROUPS_OF_USERS_WHO_LIKED.add(group);
 		}
+		// if a user was added to several strongly connected components,
+		// these groups are joined to create only one big strongly connected component 
 		else if (nbGroupsWhereUserAdded > 1) {
 			group = GROUPS_OF_USERS_WHO_LIKED.get(groupIndexesWhereUserAdded.get(0));
 			int groupIndex;
@@ -242,19 +251,31 @@ public class Task2Helper {
 		}
 	}
 
+	/**
+	 * Add a Comment to the Podium if it has a big enough Score
+	 * @param points - first part of the Score
+	 * @param time - second part of the Score
+	 * @param id - id of the Comment
+	 */
 	public static void addToPodium(Integer score, Date time, String id) {
 		
 		if (score == null || time == null) 
 			return;
 		
+		// As a TreeMap, the PODIUM is automatically sorted by ScoreComparator
 		PODIUM.put(new Score(score, time),id);
 		
+		// PODIUM's size must be lower or equal to 3
 		if (PODIUM.size() > 3) {
-			// remove first score (which has the lowest)
+			// remove first Comment (which has the lowest Score)
 			PODIUM.remove(PODIUM.firstKey());
 		}
 	}
 	
+	/**
+	 * Generate the string representation of the current PODIUM
+	 * @return String containing the 3 Comment'ids separated by the char '|'
+	 */
 	public static String computePodiumResult() {
 		String result = "";
 		int size = PODIUM.size();
@@ -267,7 +288,6 @@ public class Task2Helper {
 		while (iter.hasNext()) {
 			result = PODIUM.get(iter.next()) + "|" + result; 
 		}
-		System.out.println("#################### PODIUM Q2 : " + result);
 		return result;
 	}
 }

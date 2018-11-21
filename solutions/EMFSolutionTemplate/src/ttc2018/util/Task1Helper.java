@@ -7,7 +7,6 @@ import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import org.eclipse.emf.ecore.EObject;
-import org.eclipse.emf.ecore.EReference;
 
 import Changes.AssociationCollectionInsertion;
 import Changes.ChangeTransaction;
@@ -19,11 +18,24 @@ import SocialNetwork.SocialNetworkRoot;
 
 public class Task1Helper {
 	
+	/**
+	 * Map containing the 3 most controversial posts
+	 */
 	private final static TreeMap<Score, String> PODIUM = new TreeMap<Score, String>(new ScoreComparator());
-	private final static HashSet<Post> MODIFIED_POST = new HashSet<Post>();
+	
+	/**
+	 * For Update Task :
+	 * Set containing posts to update after that changes have been applied
+	 */
+	private final static HashSet<Post> MODIFIED_POSTS = new HashSet<Post>();
 	
 	private Task1Helper() {}
 	
+	/**
+	 * Method to call to compute the podium of the most controversial posts
+	 * @param socialNetwork - Social network to analyse
+	 * @return String containing the podium (3 ids separated by the char '|')
+	 */
 	public static String calculatePodium(SocialNetworkRoot socialNetwork) {
 		PODIUM.clear();
 		
@@ -33,83 +45,75 @@ public class Task1Helper {
 		return computePodiumResult();
 	}
 	
-	public static String updatePodium(SocialNetworkRoot socialNetwork) {
+	/**
+	 * For Update Task :
+	 * Method to call to update the podium of the most controversial posts
+	 * @return String containing the podium (3 ids separated by the char '|')
+	 */
+	public static String updatePodium() {
 		
-		System.out.println("Nb MODIFIED POST : " + MODIFIED_POST.size());
-		for (Post post: MODIFIED_POST) {
-			System.out.println("MODIFIED POST ID : " + post.getId());
+		// Update the score of all the posts affected by changes applied  while updating the social network
+		for (Post post: MODIFIED_POSTS) {
 			updatePostScore(post);
 		}
-		MODIFIED_POST.clear();
+		MODIFIED_POSTS.clear();
 		return computePodiumResult();
 	}
 	
+	/**
+	 * For Update Task :
+	 * Find out if a change affects a Post.
+	 * If so, the post is added the MODIFIED_POSTS set. 
+	 * @param change
+	 */
 	public static void findUpdatedPost(ModelChange change) {
 		ChangeTransaction currentChangeTransaction = null;
 		ModelChange sourceChange = null;
+		CompositionListInsertion compositionListInsertion = null;
 		EObject addedElement = null;
 
-		System.out.println();
-		System.out.println();
-		System.out.println("DEBUT FIND UPDATED POST");
-		System.out.println();
-		System.out.println("Change Class : " + change.getClass());
-		
 		if (change instanceof ChangeTransaction) {
 			currentChangeTransaction = (ChangeTransaction)change;
 			sourceChange = currentChangeTransaction.getSourceChange();
-			System.out.println("Source change Class : " + sourceChange.getClass());
 		}
 		else {
 			sourceChange = change;
 		}
 		
-		
+		// Case : a new Comment is added so its parent Post's score has to be updated
 		if (sourceChange instanceof CompositionListInsertion) {
-			addedElement = ((CompositionListInsertion)sourceChange).getAddedElement();
+			compositionListInsertion = (CompositionListInsertion)sourceChange;
+			addedElement = compositionListInsertion.getAddedElement();
 			
-			if (addedElement != null)
-				System.out.println("addedElement : " + addedElement.getClass());
-			else {
-				System.out.println("addedElement : null");
-				addedElement = ((CompositionListInsertion)sourceChange).getAffectedElement();
-			}
+			if (addedElement == null)
+				addedElement = compositionListInsertion.getAffectedElement();
 				
-			System.out.println("affectedElement : " + ((CompositionListInsertion)sourceChange).getAffectedElement().getClass());
-			System.out.println("feature : " + ((EReference)((CompositionListInsertion)sourceChange).getFeature()).getName());
-			
 			if (addedElement instanceof Comment) {
-				System.out.println("Comment id : " + ((Comment)addedElement).getId() + " ; post id : " + ((Comment)addedElement).getPost().getId());
-				MODIFIED_POST.add(((Comment)addedElement).getPost());
+				MODIFIED_POSTS.add(((Comment)addedElement).getPost());
 			}
 			else if (addedElement instanceof Post) {
-				System.out.println("Post id : " + ((Post)addedElement).getId());
-				MODIFIED_POST.add((Post)addedElement);
+				MODIFIED_POSTS.add((Post)addedElement);
 			}
 		}
+		// Case : a Comment is liked by a User so its parent Post's score has to be updated
 		else if (sourceChange instanceof AssociationCollectionInsertion) {
 			addedElement = ((AssociationCollectionInsertion)sourceChange).getAddedElement();
-			if (addedElement != null)
-				System.out.println("addedElement : " + addedElement.getClass());
-			else 
-				System.out.println("addedElement : null");
-			System.out.println("affectedElement : " + ((AssociationCollectionInsertion)sourceChange).getAffectedElement().getClass());
-			System.out.println("feature : " + ((EReference)((AssociationCollectionInsertion)sourceChange).getFeature()).getName());
 			
 			if (addedElement instanceof Comment) {
-				System.out.println("Comment id : " + ((Comment)addedElement).getId() + " ; post id : " + ((Comment)addedElement).getPost().getId());
-				MODIFIED_POST.add(((Comment)addedElement).getPost());
+				MODIFIED_POSTS.add(((Comment)addedElement).getPost());
 			}
 		}
-
-		System.out.println();
-		System.out.println("FIN FIND UPDATED POST");
-		System.out.println();
-		System.out.println();
 	}
 	
+	/**
+	 * Method which calculates the Score of a given Post
+	 * @param post
+	 * @return points of the Post's Score
+	 */
 	public static Integer calculatePostScore(Post post) {
 		Integer score = 0;
+		
+		// Post's points are the sum of its comments' points
 		for (Comment commentChild : post.getComments()) {
 			score += calculateCommentScore(commentChild);
 		}
@@ -117,28 +121,41 @@ public class Task1Helper {
 		return score;
 	}
 	
+	/**
+	 * For Update Task :
+	 * Method which updates the Score of a given Post
+	 * @param post
+	 * @return points of the Post's Score
+	 */
 	public static Integer updatePostScore(Post post) {
 		Integer score = 0;
 		Score keyToRemove = null;
 		
+		// Post's points are the sum of its comments' points
 		for (Comment commentChild : post.getComments()) {
 			score += calculateCommentScore(commentChild);
 		}
 		
+		// If the updated Post was already in the PODIUM with its previous Score, we have to remove it
 		for (Entry<Score, String> podiumMember : PODIUM.entrySet()) {
 			if (podiumMember.getValue().equals(post.getId())) {
 				keyToRemove = podiumMember.getKey();
 			}
 		}
 		
-		// TODO test setpoints here
 		if (keyToRemove != null) {
 			PODIUM.remove(keyToRemove);			
 		}
+		// Try to add the new Score to the PODIUM
 		addToPodium(score, post.getTimestamp(), post.getId());	
 		return score;
 	}
 	
+	/**
+	 * Method which calculates the score of a Comment
+	 * @param comm
+	 * @return points of the Comment's Score
+	 */
 	public static Integer calculateCommentScore(Comment comm) {
 		Integer score = 10 + comm.getLikedBy().size();
 		
@@ -148,19 +165,31 @@ public class Task1Helper {
 		return score;
 	}
 	
-	public static void addToPodium(Integer score, Date time, String id) {
+	/**
+	 * Add a Post to the Podium if it has a big enough Score
+	 * @param points - first part of the Score
+	 * @param time - second part of the Score
+	 * @param id - id of the Post
+	 */
+	public static void addToPodium(Integer points, Date time, String id) {
 		
-		if (score == null || time == null) 
+		if (points == null || time == null) 
 			return;
 		
-		PODIUM.put(new Score(score, time),id);
+		// As a TreeMap, the PODIUM is automatically sorted by ScoreComparator
+		PODIUM.put(new Score(points, time),id);
 		
+		// PODIUM's size must be lower or equal to 3
 		if (PODIUM.size() > 3) {
-			// remove first score (which has the lowest)
+			// remove first Post (which has the lowest Score)
 			PODIUM.remove(PODIUM.firstKey());
 		}
 	}
 
+	/**
+	 * Generate the string representation of the current PODIUM
+	 * @return String containing the 3 Post'ids separated by the char '|'
+	 */
 	public static String computePodiumResult() {
 		String result = "";
 		int size = PODIUM.size();
@@ -173,7 +202,6 @@ public class Task1Helper {
 		while (iter.hasNext()) {
 			result = PODIUM.get(iter.next()) + "|" + result; 
 		}
-		System.out.println("#################### PODIUM Q1 : " + result);
 		return result;
 	}
 }
