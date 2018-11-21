@@ -16,6 +16,10 @@ public class Score {
 		return this.points;
 	}
 	
+	public void setPoints(int points) {
+		this.points = points;
+	}
+	
 	public Date getTimestamp() {
 		return this.timestamp;
 	}

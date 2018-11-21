@@ -7,6 +7,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.TreeMap;
 
+import org.eclipse.emf.ecore.EObject;
+import org.eclipse.emf.ecore.EReference;
+
+import Changes.AssociationCollectionInsertion;
+import Changes.ChangeTransaction;
+import Changes.CompositionListInsertion;
+import Changes.ModelChange;
 import SocialNetwork.Comment;
 import SocialNetwork.Post;
 import SocialNetwork.SocialNetworkRoot;
@@ -24,9 +31,15 @@ public class Task2Helper {
 	 */
 	private final static List<HashSet<User>> GROUPS_OF_USERS_WHO_LIKED = new ArrayList<>();
 	
+	/**
+	 * For Update part (IN PROGRESS)
+	 */
+	private final static HashSet<Comment> MODIFIED_COMMENTS = new HashSet<Comment>();
+	
 	private Task2Helper() {}
 	
 	public static String calculatePodium(SocialNetworkRoot socialNetwork) {
+		PODIUM.clear();
 		
 		for (Post post: socialNetwork.getPosts()) {
 			for (Comment comm: post.getComments()) {
@@ -34,6 +47,69 @@ public class Task2Helper {
 			}
 		}
 		return computePodiumResult();
+	}
+	
+	public static void findUpdatedComments(ModelChange change) {
+		ChangeTransaction currentChangeTransaction = null;
+		ModelChange sourceChange = null;
+		EObject addedElement = null;
+
+		System.out.println();
+		System.out.println();
+		System.out.println("DEBUT FIND UPDATED COMMENTS");
+		System.out.println();
+		System.out.println("Change Class : " + change.getClass());
+		
+		if (change instanceof ChangeTransaction) {
+			currentChangeTransaction = (ChangeTransaction)change;
+			sourceChange = currentChangeTransaction.getSourceChange();
+			System.out.println("Source change Class : " + sourceChange.getClass());
+		}
+		else {
+			sourceChange = change;
+		}
+		
+		
+		if (sourceChange instanceof CompositionListInsertion) {
+			addedElement = ((CompositionListInsertion)sourceChange).getAddedElement();
+			
+			if (addedElement != null)
+				System.out.println("addedElement : " + addedElement.getClass());
+			else {
+				System.out.println("addedElement : null");
+				addedElement = ((CompositionListInsertion)sourceChange).getAffectedElement();
+			}
+				
+			System.out.println("affectedElement : " + ((CompositionListInsertion)sourceChange).getAffectedElement().getClass());
+			System.out.println("feature : " + ((EReference)((CompositionListInsertion)sourceChange).getFeature()).getName());
+			
+			if (addedElement instanceof Comment) {
+				System.out.println("Comment added id : " + ((Comment)addedElement).getId());
+				MODIFIED_COMMENTS.add((Comment)addedElement);
+			}
+			else if (addedElement instanceof Post) {
+				System.out.println("Post added id : " + ((Post)addedElement).getId());
+			}
+		}
+		else if (sourceChange instanceof AssociationCollectionInsertion) {
+			addedElement = ((AssociationCollectionInsertion)sourceChange).getAddedElement();
+			if (addedElement != null)
+				System.out.println("addedElement : " + addedElement.getClass());
+			else 
+				System.out.println("addedElement : null");
+			System.out.println("affectedElement : " + ((AssociationCollectionInsertion)sourceChange).getAffectedElement().getClass());
+			System.out.println("feature : " + ((EReference)((AssociationCollectionInsertion)sourceChange).getFeature()).getName());
+			
+			if (addedElement instanceof Comment) {
+				System.out.println("Comment liked id : " + ((Comment)addedElement).getId());
+				MODIFIED_COMMENTS.add((Comment)addedElement);
+			}
+		}
+
+		System.out.println();
+		System.out.println("FIN FIND UPDATED COMMENTS");
+		System.out.println();
+		System.out.println();
 	}
 	
 	public static Integer calculateCommentScore(Comment comm) {

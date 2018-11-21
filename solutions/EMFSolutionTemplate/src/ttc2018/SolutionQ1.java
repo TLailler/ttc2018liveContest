@@ -16,11 +16,15 @@ public class SolutionQ1 extends Solution {
 	@Override
 	public String Update(ModelChangeSet changes) {
 		EList<ModelChange> coll = changes.getChanges();
+		
 		for (ModelChange change : coll) {
 			change.apply();
+			Task1Helper.findUpdatedPost(change);
 		}
-		// TODO Implement Q1
-		return null;
+		return Task1Helper.updatePodium(this.getSocialNetwork());
+		
+		// If we want to use Initial method for update
+//		return Task1Helper.calculatePodium(this.getSocialNetwork());
 	}
 
 }

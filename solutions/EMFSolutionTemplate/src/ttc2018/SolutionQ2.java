@@ -10,7 +10,7 @@ public class SolutionQ2 extends Solution {
 
 	@Override
 	public String Initial() {
-		return  Task2Helper.calculatePodium(this.getSocialNetwork());
+		return Task2Helper.calculatePodium(this.getSocialNetwork());
 	}
 
 	@Override
@@ -19,8 +19,7 @@ public class SolutionQ2 extends Solution {
 		for (ModelChange change : coll) {
 			change.apply();
 		}
-		// TODO Implement Q2
-		return null;
+		return Task2Helper.calculatePodium(this.getSocialNetwork());
 	}
 
 }
