@@ -18,8 +18,9 @@ public class SolutionQ2 extends Solution {
 		EList<ModelChange> coll = changes.getChanges();
 		for (ModelChange change : coll) {
 			change.apply();
+			Task2Helper.findUpdatedComments(change);
 		}
-		return Task2Helper.calculatePodium(this.getSocialNetwork());
+		return Task2Helper.updatePodium(this.getSocialNetwork());
 	}
 
 }

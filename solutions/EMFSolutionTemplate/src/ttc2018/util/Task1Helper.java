@@ -131,6 +131,7 @@ public class Task1Helper {
 			}
 		}
 		
+		// TODO test setpoints here
 		if (keyToRemove != null) {
 			PODIUM.remove(keyToRemove);			
 		}

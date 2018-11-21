@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import org.eclipse.emf.ecore.EObject;
@@ -49,10 +50,23 @@ public class Task2Helper {
 		return computePodiumResult();
 	}
 	
+	public static String updatePodium(SocialNetworkRoot socialNetwork) {
+		
+		System.out.println("Nb MODIFIED COMMENTS : " + MODIFIED_COMMENTS.size());
+		for (Comment comm: MODIFIED_COMMENTS) {
+			System.out.println("MODIFIED COMMENT ID : " + comm.getId());
+			updateCommentScore(comm);
+		}
+		MODIFIED_COMMENTS.clear();
+		return computePodiumResult();
+	}
+	
 	public static void findUpdatedComments(ModelChange change) {
 		ChangeTransaction currentChangeTransaction = null;
 		ModelChange sourceChange = null;
 		EObject addedElement = null;
+		EObject affectedElement = null;
+		EReference feature = null;
 
 		System.out.println();
 		System.out.println();
@@ -72,11 +86,12 @@ public class Task2Helper {
 		
 		if (sourceChange instanceof CompositionListInsertion) {
 			addedElement = ((CompositionListInsertion)sourceChange).getAddedElement();
-			
+			int index = ((CompositionListInsertion)sourceChange).getIndex();
 			if (addedElement != null)
 				System.out.println("addedElement : " + addedElement.getClass());
 			else {
 				System.out.println("addedElement : null");
+				System.out.println("index : " + index);
 				addedElement = ((CompositionListInsertion)sourceChange).getAffectedElement();
 			}
 				
@@ -89,20 +104,45 @@ public class Task2Helper {
 			}
 			else if (addedElement instanceof Post) {
 				System.out.println("Post added id : " + ((Post)addedElement).getId());
+				System.out.println("Comment added test id : " + ((Post)addedElement).getComments().get(index).getId());
+				MODIFIED_COMMENTS.add(((Post)addedElement).getComments().get(index));
 			}
 		}
 		else if (sourceChange instanceof AssociationCollectionInsertion) {
 			addedElement = ((AssociationCollectionInsertion)sourceChange).getAddedElement();
+			affectedElement = ((AssociationCollectionInsertion)sourceChange).getAffectedElement();
+			feature = (EReference)((AssociationCollectionInsertion)sourceChange).getFeature();
+			
 			if (addedElement != null)
 				System.out.println("addedElement : " + addedElement.getClass());
 			else 
 				System.out.println("addedElement : null");
-			System.out.println("affectedElement : " + ((AssociationCollectionInsertion)sourceChange).getAffectedElement().getClass());
-			System.out.println("feature : " + ((EReference)((AssociationCollectionInsertion)sourceChange).getFeature()).getName());
+			
+			if (affectedElement != null)
+				System.out.println("affectedElement : " + affectedElement.getClass());
+			else 
+				System.out.println("affectedElement : null");
+			
+			if (feature != null)
+				System.out.println("feature : " + feature.getName());
+			else 
+				System.out.println("feature : null");
 			
 			if (addedElement instanceof Comment) {
 				System.out.println("Comment liked id : " + ((Comment)addedElement).getId());
 				MODIFIED_COMMENTS.add((Comment)addedElement);
+			}
+			else if (addedElement instanceof User && affectedElement instanceof User && "friends".contentEquals(feature.getName())) {
+				List<Comment> commentsLikedByAdded = ((User)addedElement).getLikes();
+				List<Comment> commentsLikedByAffected = ((User)affectedElement).getLikes();
+				
+				for (Comment comm : commentsLikedByAdded) {
+					
+					if (commentsLikedByAffected.contains(comm)) {
+						System.out.println("Comment liked by two new friends : " + comm.getId());
+						MODIFIED_COMMENTS.add(comm);
+					}
+				}
 			}
 		}
 
@@ -128,6 +168,38 @@ public class Task2Helper {
 		
 		for (HashSet<User> group : GROUPS_OF_USERS_WHO_LIKED) {
 			score += (group.size() * group.size()); 
+		}
+		addToPodium(score, comm.getTimestamp(), comm.getId());
+		return score;
+	}
+	
+	public static Integer updateCommentScore(Comment comm) {
+		Score keyToRemove = null;
+		
+		for (Comment commentChild : comm.getComments()) {
+			calculateCommentScore(commentChild);
+		}
+		// calculate score for current comment
+		// users who LIKED and are FRIENDS in the same GROUP
+		GROUPS_OF_USERS_WHO_LIKED.clear();
+		Integer score = 0;
+		
+		for (User user: comm.getLikedBy()) {
+			addToGroups(user);
+		}
+		
+		for (HashSet<User> group : GROUPS_OF_USERS_WHO_LIKED) {
+			score += (group.size() * group.size()); 
+		}
+		
+		for (Entry<Score, String> podiumMember : PODIUM.entrySet()) {
+			if (podiumMember.getValue().equals(comm.getId())) {
+				keyToRemove = podiumMember.getKey();
+			}
+		}
+		
+		if (keyToRemove != null) {
+			PODIUM.remove(keyToRemove);			
 		}
 		addToPodium(score, comm.getTimestamp(), comm.getId());
 		return score;
